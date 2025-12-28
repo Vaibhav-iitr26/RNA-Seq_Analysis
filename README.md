@@ -78,6 +78,4 @@ fastq-dump --outdir fastq --gzip --skip-technical --readids \
 ```
 Instead of running these commands repeatedly, the conversion was automated using a Python script `fastq_download.py` that loops over all SRR IDs.
 
-`python3 ./Scripts/ fastq_download.py`
-
-
+<img width="1919" height="258" alt="Screenshot 2025-12-13 150858" src="https://github.com/user-attachments/assets/a1f3ad65-60d0-4291-8027-5746b9a1441d" />
