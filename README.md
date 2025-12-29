@@ -110,7 +110,7 @@ fastqc 3_Fastq_samplewise/*.fastq.gz \
 ```
 <img width="1919" height="469" alt="Screenshot 2025-12-13 190450" src="https://github.com/user-attachments/assets/09a8a039-25a0-4bc6-9b52-91178ed0cee3" />
 
-I have attached one file named `LNCAP_Hypoxia_S1.fastq.gz FastQC Report.pdf`, you can see there the QC result of that sample.
+I have attached one file, named `LNCAP_Hypoxia_S1.fastq.gz FastQC Report.pdf`, you can see there the QC result of that sample.
 
 MultiQC is used to collect and summarize all FastQC results into a single consolidated report.
 ```
@@ -163,3 +163,12 @@ It will loops over all trimmed FASTQ files, aligns each sample using HISAT2, sor
 ### 7. Assessing quality of aligned reads
 
 After aligning RNA-seq reads to the reference genome, it is important to check how good the alignment actually is. This step evaluates whether reads mapped correctly, evenly, and in a biologically reasonable way. Qualimap is used to assess the quality of RNA-seq alignments stored in BAM files.
+
+```
+qualimap rnaseq -bam alignedreads/LNCAP_Hypoxia_S1.bam \
+  -gtf Homo_sapiens.GRCh38.114.gtf \
+  -outdir rnaseq_qc_results --java-mem-size=8G
+```
+
+For each sample, Qualimap generates a qualimapReport.html, an interactive QC report. I have attached one file, named `LNCAP_Hypoxia_S1.fastq.gz FastQC Report.pdf`, you can see there the QC result of that sample.
+
