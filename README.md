@@ -57,7 +57,10 @@ ___
 
 The RNA-seq data for this project were obtained from NCBI SRA. Each sample in GEO is linked to one or more SRR accessions, which store raw sequencing data in .sra format. These .sra files are not directly usable for analysis and must first be downloaded and converted into FASTQ format. 
 
-`prefetch SRR7179504`  This downloads the .sra file for one sequencing run. Repeated this for all SRR accessions listed in the dataset.
+```
+prefetch SRR7179504
+```
+This downloads the .sra file for one sequencing run. Repeated this for all SRR accessions listed in the dataset.
 
 
 ```
@@ -191,3 +194,130 @@ featureCounts \
 For each sample, featureCounts generates a gene count file. Because featureCounts must be run on multiple BAM files, read counting was automated using a shell script named `featurecounts.sh`.
 
 After running featureCounts, you obtain one count file per sample. Each file contains gene IDs and the number of reads mapped to that gene for that specific sample. So, all individual count files are need to be merged into a single count matrix, where, Rows are genes, Columns are samples, Values are actual raw read counts. To obtain this matrix, python script `countsmatrix_wholedata.py` used. The final output is a combined count matrix stored in file `GSE106305_counts_matrix.csv`. This combined matrix is the direct input for differential expression analysis.
+
+
+### 9. Differential Gene Expression
+
+The next step in the RNA-seq workflow is the differential expression analysis. The goal of differential expression testing is to determine which genes are expressed at different levels between conditions. These genes can offer biological insight into the processes affected by the condition(s) of interest. DESeq2 is a widely used Bioconductor package in R designed for differential gene expression analysis of high-throughput sequencing data, such as RNA-seq. So, required packages installed.
+
+```r
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install(c("DESeq2", "apeglm", "EnhancedVolcano", "pheatmap", "RColorBrewer"))
+install.packages(c("tidyverse", "ggrepel"))
+```
+
+#### 1. Loading required libraries
+
+```r
+library(DESeq2)
+library(dplyr)
+library(tibble)
+library(tidyverse)
+library(data.table)
+library(ggplot2)
+library(ggrepel)
+library(pheatmap)
+library(RColorBrewer)
+library(matrixStats)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(ReactomePA)
+library(fgsea)
+library(forcats)
+library(stringr)
+```
+DESeq2 - Core package used for normalization and differential gene expression analysis of RNA-seq count data.
+
+dplyr, tibble, tidyverse, data.table, forcats, stringr - Used for efficient data manipulation, filtering, formatting, and handling sample and gene information.
+
+ggplot2, ggrepel, pheatmap, RColorBrewer, matrixStats - Used for visualization of results, including PCA plots, volcano plots, and heatmaps.
+
+clusterProfiler, org.Hs.eg.db, ReactomePA, fgsea - Used for functional annotation and pathway enrichment analysis of differentially expressed genes.
+
+ #### 2. Loading Count Matrix and Creating Sample Metadata
+```r
+#Loads the combined gene × sample raw count matrix. Gene IDs are used as row names.
+raw_counts <- read.csv(
+  "8_Read_counts/GSE106305_counts_matrix.csv",
+  row.names = "Geneid",
+  stringsAsFactors = FALSE
+)
+
+
+#Ensure consistent sample order
+raw_counts <- raw_counts[, sort(colnames(raw_counts))]
+
+
+#Checks data dimensions and total read counts per sample.
+dim(raw_counts)
+colSums(raw_counts)
+
+
+#Defines experimental conditions for each sample.
+condition <- c(
+rep("LNCAP_Hypoxia", 2),
+rep("LNCAP_Normoxia", 2),
+rep("PC3_Hypoxia", 2),
+rep("PC3_Normoxia", 2)
+)
+
+
+#Creates sample metadata aligned with the count matrix.
+colData <- data.frame(condition)
+rownames(colData) <- colnames(raw_counts)
+colData
+
+```
+
+#### 3. Creating DESeq2 Dataset and Inspect Zero-Count Genes
+
+```r
+#Creates a DESeq2 dataset by combining the raw count matrix with sample metadata and specifying the experimental design based on the condition variable.
+dds <- DESeqDataSetFromMatrix(
+countData = raw_counts,
+colData   = colData,
+design    = ~ condition
+)
+
+#Extracts the raw gene-level read counts from the DESeq2 dataset object. 
+count_matrix <- counts(dds)
+
+#Calculates the number of samples in which each gene has zero read counts.
+zero_counts_per_gene <- rowSums(count_matrix == 0)
+table(zero_counts_per_gene)
+```
+
+
+#### 4. 
+
+```r
+annotation <- fread("Data/GRCh38annotation.csv")
+
+annotation$Geneid <- sub("\\..*$", "", annotation$Geneid)
+
+counts_df <- raw_counts %>%
+rownames_to_column("Geneid") %>%
+mutate(Geneid = sub("\\..*$", "", Geneid))
+
+annotated_counts <- left_join(counts_df, annotation, by = "Geneid") %>%
+    dplyr::select(Geneid, Genesymbol, Genebiotype, 
+           LNCAP_Hypoxia_S1, LNCAP_Hypoxia_S2, LNCAP_Normoxia_S1, LNCAP_Normoxia_S2, 
+           PC3_Hypoxia_S1, PC3_Hypoxia_S2, PC3_Normoxia_S1, PC3_Normoxia_S2)
+
+biotypes_to_keep <- c(
+"protein_coding",
+"IG_J_gene","IG_V_gene","IG_C_gene","IG_D_gene",
+"TR_D_gene","TR_C_gene","TR_V_gene","TR_J_gene"
+)
+
+filtered_counts <- annotated_counts %>%
+filter(Genebiotype %in% biotypes_to_keep)
+
+zero_counts <- rowSums(filtered_counts[, 4:11] == 0)
+filtered_counts <- filtered_counts[zero_counts < 7, ]
+
+fwrite(filtered_counts, "filtered_biotype_nozero_count_matrix.csv")
+
+```
