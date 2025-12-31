@@ -321,3 +321,7 @@ filtered_counts <- filtered_counts[zero_counts < 7, ]
 fwrite(filtered_counts, "filtered_biotype_nozero_count_matrix.csv")
 
 ```
+[RNA-seq Differential Expression.pdf](https://github.com/user-attachments/files/24397034/RNA-seq.Differential.Expression.pdf)
+
+
+
