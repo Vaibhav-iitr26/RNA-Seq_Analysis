@@ -433,21 +433,24 @@ coordinated shifts. Therefore, ORA should be treated as a supporting or confirma
 
 fgsea is a fast and efficient implementation of the GSEA algorithm. It asks the same question as GSEA but
 scales better and is widely used. 
-Hallmark pathways: - summarize core biological programs - are manually curated - reduce redundancy 
-Hallmark pathways reduce redundancy and highlight dominant biology.
+Hallmark pathways are summarize core biological programs and manually curated. 
+It's reduce redundancy and highlight dominant biology.
+This makes fgsea + Hallmark ideal for final biological conclusions.
 
 
+##### Step 1: Load fgsea and Hallmark gene sets
 
-## Step 10: Load fgsea and Hallmark gene sets
+Downloaded GMT file manually (h.all.v7.0.symbols.gmt.txt), which contains the Hallmark gene set collection from MSigDB version 7.0. https://www.gsea-msigdb.org/gsea/msigdb/human/collections.jsp
 
-````r
+```r
 library(fgsea)
 
 hallmark_sets <- gmtPathways("h.all.v7.0.symbols.gmt.txt")n```
+```
 
----
 
-## Step 11: Prepare ranked list (gene symbols required)
+
+##### Step 2: Prepared ranked list
 
 ```r
 # Convert ENSEMBL to SYMBOL
@@ -470,7 +473,7 @@ ranked_symbols <- sort(ranked_symbols, decreasing = TRUE)
 ````
 
 
-## Step 12: Run fgsea
+##### Step 3: Run fgsea
 
 ```r
 fgsea_res <- fgsea(
@@ -484,7 +487,7 @@ fgsea_res <- fgsea(
 
 
 
-## Step 13: Inspect top Hallmark pathways
+##### Step 4: Inspect top Hallmark pathways
 
 ```r
 fgsea_res %>%
@@ -495,7 +498,7 @@ fgsea_res %>%
 
 
 
-## Step 14: Visualize Hallmark enrichment
+##### Step 5: Visualized Hallmark enrichment
 
 ```r
 library(ggplot2)
@@ -515,28 +518,16 @@ fgsea_res %>%
     y = NULL
   )
 ```
+---
 
 
+Using a combination of pre-ranked GSEA, ORA, and fgsea with Hallmark gene sets, we analysed the transcriptional consequences of hypoxia in LNCaP prostate cancer cells.
 
-## Final interpretation strategy
+Pathway-level analysis comparing LNCaP cells grown under normoxia and hypoxia reveals a clear  transcriptional response to low-oxygen stress. Using fgsea with Hallmark gene sets, we observed strong positive enrichment of pathways related to hypoxia response, glycolysis, and cellular stress adaptation, indicating coordinated upregulation of genes involved in oxygen sensing and metabolic reprogramming. In contrast, pathways associated with differentiated cellular functions show relative suppression under hypoxic conditions.
 
-* **Primary biology:** fgsea + Hallmark
-* **Mechanistic insight:** Reactome GSEA
-* **Cutoff-based confirmation:** ORA
+These results indicate that hypoxia induces a global transcriptional reprogramming in LNCaP cells, driven by coordinated changes across many genes rather than by a small number of highly differentially expressed genes. The observed pathway enrichment patterns are consistent with known hypoxia-driven responses in prostate cancer cells and support the role of hypoxic stress in promoting metabolic adaptation and transcriptional plasticity.
 
-Consistency across methods strengthens biological confidence.
-
-
-
-## Final takeaway
-
-> GSEA preserves information.
-> ORA discards information first.
-> fgsea + Hallmark summarizes biology cleanly.
-
-Use them as **layers**, not competitors.
-
-
+Overall, fgsea with Hallmark gene sets provides a robust and interpretable summary of hypoxia-induced biological programs in LNCaP cells.
 
 
 
