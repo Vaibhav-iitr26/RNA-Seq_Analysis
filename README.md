@@ -521,11 +521,7 @@ fgsea_res %>%
 ---
 
 
-Using a combination of pre-ranked GSEA, ORA, and fgsea with Hallmark gene sets, we analysed the transcriptional consequences of hypoxia in LNCaP prostate cancer cells.
-
-Pathway-level analysis comparing LNCaP cells grown under normoxia and hypoxia reveals a clear  transcriptional response to low-oxygen stress. Using fgsea with Hallmark gene sets, we observed strong positive enrichment of pathways related to hypoxia response, glycolysis, and cellular stress adaptation, indicating coordinated upregulation of genes involved in oxygen sensing and metabolic reprogramming. In contrast, pathways associated with differentiated cellular functions show relative suppression under hypoxic conditions.
-
-These results indicate that hypoxia induces a global transcriptional reprogramming in LNCaP cells, driven by coordinated changes across many genes rather than by a small number of highly differentially expressed genes. The observed pathway enrichment patterns are consistent with known hypoxia-driven responses in prostate cancer cells and support the role of hypoxic stress in promoting metabolic adaptation and transcriptional plasticity.
+Using a combination of pre-ranked GSEA, ORA, and fgsea with Hallmark gene sets, we analysed the transcriptional consequences of hypoxia in LNCaP prostate cancer cells. Pathway-level analysis comparing LNCaP cells grown under normoxia and hypoxia reveals a clear  transcriptional response to low-oxygen stress. Using fgsea with Hallmark gene sets, we observed strong positive enrichment of pathways related to hypoxia response, glycolysis, and cellular stress adaptation, indicating coordinated upregulation of genes involved in oxygen sensing and metabolic reprogramming. In contrast, pathways associated with differentiated cellular functions show relative suppression under hypoxic conditions.
 
 Overall, fgsea with Hallmark gene sets provides a robust and interpretable summary of hypoxia-induced biological programs in LNCaP cells.
 
