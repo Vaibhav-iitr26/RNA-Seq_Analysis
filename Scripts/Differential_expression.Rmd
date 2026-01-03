@@ -1,0 +1,425 @@
+---
+title: "RNA-seq Differential Expression"
+author: "Vaibhav"
+date: "2025-12-20"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,      # show code
+  message = FALSE,  # hide package messages
+  warning = FALSE,  # hide warnings
+  fig.width = 7,
+  fig.height = 5
+)
+
+```
+---
+
+**Introduction**
+
+This analysis investigates hypoxia-induced transcriptional changes in prostate cancer
+cell lines LNCaP (androgen-sensitive) and PC3 (androgen-independent).
+Hypoxia is a major driver of tumor aggressiveness and lineage plasticity.
+
+The goal is to identify:
+
+[1]Differentially expressed genes (DEGs) under hypoxia
+
+[2]Global expression patterns using PCA
+
+[3]Hypoxia-regulated biological pathways
+
+[4]Hallmark biological programs altered in LNCaP cells
+
+
+
+
+**Loading required libraries**
+
+These packages implement:
+
+Differential expression statistics (DESeq2)
+
+Data manipulation (tidyverse)
+
+Visualization (ggplot2, pheatmap)
+
+Pathway analysis (clusterProfiler, ReactomePA, fgsea)
+
+***Packages must be installed before knitting***
+
+```{r}
+library(DESeq2)
+library(tidyverse)
+library(pheatmap)
+library(RColorBrewer)
+library(matrixStats)
+library(clusterProfiler)
+library(ReactomePA)
+library(org.Hs.eg.db)
+library(fgsea)
+```
+
+**Loading raw count matrix**
+
+
+```{r}
+# Read count matrix
+
+counts <- read.csv("GSE106305_counts_matrix.csv",
+row.names = "Geneid",
+stringsAsFactors = FALSE)
+
+
+counts <- counts[, sort(colnames(counts))]
+# View the first few rows
+head(counts)
+
+```
+
+
+**Creating sample metadata**
+```{r}
+
+condition <- factor(c(
+rep("LNCAP_Hypoxia", 2),
+rep("LNCAP_Normoxia", 2),
+rep("PC3_Hypoxia", 2),
+rep("PC3_Normoxia", 2)
+))
+
+
+colData <- data.frame(condition)
+rownames(colData) <- colnames(counts)
+head(colData)
+```
+
+**DESeq2 dataset**
+
+```{r}
+
+dds <- DESeqDataSetFromMatrix(
+countData = counts,
+colData = colData,
+design = ~ condition
+)
+
+# Keep genes with at least 10 reads in at least 2 samples
+keep <- rowSums(counts(dds) >= 10) >= 2
+dds <- dds[keep, ]
+```
+
+
+**Differential expression analysis**
+```{r}
+dds <- DESeq(dds)
+
+#Normalized counts
+norm_counts <- counts(dds, normalized = TRUE)
+write.csv(norm_counts, "Normalized_counts.csv")
+
+```
+
+**Exploratory analysis: PCA**
+```{r}
+
+#Variance-stabilizing transformation
+vsd <- vst(dds, blind = TRUE)
+
+pca_data <- plotPCA(vsd, intgroup = "condition", returnData = TRUE)
+percentVar <- round(100 * attr(pca_data, "percentVar"))
+
+
+p_pca <- ggplot(pca_data, aes(PC1, PC2, color = condition)) +
+geom_point(size = 3) +
+labs(x = paste0("PC1: ", percentVar[1], "%"),
+y = paste0("PC2: ", percentVar[2], "%"),
+title = "PCA (VST transformed)") +
+theme_minimal()
+
+
+ggsave("PCA_plot.png", p_pca, width = 6, height = 5, dpi = 300)
+
+print(p_pca)
+dev.off()
+```
+
+
+**Sample-to-sample distance heatmap**
+```{r}
+sample_dists <- dist(t(assay(vsd)))
+dist_matrix <- as.matrix(sample_dists)
+
+
+png("sample_distance_heatmap.png", width = 1200, height = 1000, res = 300)
+p <- pheatmap(dist_matrix,
+clustering_distance_rows = sample_dists,
+clustering_distance_cols = sample_dists,
+col = colorRampPalette(rev(brewer.pal(9, "Blues")))(255),
+main = "Sample-to-sample distances")
+
+print(p)
+dev.off()
+```
+
+
+**Expression distribution diagnostics**
+```{r}
+png("density_raw_vs_vst.png", width = 2000, height = 2000, res = 300)
+par(mfrow = c(2, 2))
+
+
+plot(density(counts(dds)[,1]), main = "Raw counts", xlab = "Expression")
+plot(density(assay(vsd)[,1]), main = "VST counts", xlab = "Expression")
+
+
+dev.off()
+
+```
+
+
+**Highly variable gene heatmap**
+```{r}
+rv <- rowVars(assay(vsd))
+top_genes <- order(rv, decreasing = TRUE)[1:40]
+
+
+mat <- assay(vsd)[top_genes, ]
+mat <- mat - rowMeans(mat)
+
+
+png("top_variable_genes_heatmap.png", width = 1200, height = 1200, res = 300)
+pheatmap(mat,
+color = colorRampPalette(rev(brewer.pal(9, "RdBu")))(255),
+fontsize_row = 6,
+main = "Top 40 most variable genes")
+dev.off()
+```
+```{r}
+dds_lncap <- dds[, grepl("LNCAP", colnames(dds))]
+dds_lncap$condition <- droplevels(dds_lncap$condition)
+dds_lncap$condition <- relevel(dds_lncap$condition, ref = "LNCAP_Normoxia")
+
+```
+
+
+**Extract differential expression results**
+```{r}
+dds_lncap <- DESeq(dds_lncap)
+
+
+res_lncap <- results(dds_lncap,
+contrast = c("condition",
+"LNCAP_Hypoxia",
+"LNCAP_Normoxia"))
+write.csv(as.data.frame(res_lncap), "DEGs_LNCAP.csv")
+head(res_lncap)
+
+```
+
+**MA plot**
+
+```{r}
+
+png("MA_plot_LNCAP.png", width = 800, height = 600, res = 150)
+plotMA(res_lncap, ylim = c(-5, 5))
+dev.off()
+```
+
+
+**Volcano plot**
+```{r}
+
+res_df <- as.data.frame(res_lncap) %>%
+na.omit() %>%
+mutate(regulation = case_when(
+padj < 0.05 & log2FoldChange > 1 ~ "Upregulated",
+padj < 0.05 & log2FoldChange < -1 ~ "Downregulated",
+TRUE ~ "Not significant"
+))
+
+
+p_volcano <- ggplot(res_df, aes(log2FoldChange, -log10(padj), color = regulation)) +
+geom_point(alpha = 0.6) +
+theme_minimal() +
+labs(title = "Volcano plot: LNCaP hypoxia")
+
+
+ggsave("Volcano_plot_LNCAP.png", p_volcano, width = 6, height = 5, dpi = 300)
+```
+
+
+***Pathway Analysis using GSEA***
+
+
+
+```{r}
+#Converting gene IDs (ENSEMBL → ENTREZ)
+
+res_lncap_df <- as.data.frame(res_lncap)
+res_lncap_df$ENSEMBL <- rownames(res_lncap)
+
+id_map <- bitr(
+res_lncap_df$ENSEMBL,
+fromType = "ENSEMBL",
+toType = "ENTREZID",
+OrgDb = org.Hs.eg.db
+)
+
+head(res_lncap_df)
+
+#Merge mapping and removing duplicates
+res_mapped <- res_lncap_df %>% left_join(id_map, by = "ENSEMBL") %>%
+filter(!is.na(ENTREZID)) %>%
+distinct(ENTREZID, .keep_all = TRUE)
+head(res_mapped)
+```
+
+
+**Creating ranked gene list**
+
+```{r}
+gene_ranking <- res_mapped$log2FoldChange
+names(gene_ranking) <- res_mapped$ENTREZID
+gene_ranking <- sort(gene_ranking, decreasing = TRUE)
+
+head(gene_ranking)
+```
+
+**Run GSEA using Reactome**
+```{r}
+gsea_reactome <- gsePathway(
+geneList = gene_ranking,
+organism = "human",
+pvalueCutoff = 0.05,
+verbose = FALSE
+)
+
+head(gsea_reactome@result)
+```
+
+
+***Over-Representation Analysis (ORA)***
+
+```{r}
+#extracted significant genes
+sig_genes <- res_mapped %>%
+filter(padj < 0.05 & abs(log2FoldChange) > 1) %>%
+pull(ENTREZID)
+```
+
+
+**Run ORA using Reactome**
+```{r}
+ora_reactome <- enrichPathway(
+gene = sig_genes,
+organism = "human",
+pvalueCutoff = 0.05
+)
+
+```
+
+**Dotpot**
+```{r}
+d <-dotplot(ora_reactome, showCategory = 20)
+
+ggsave("ora_reactome_dotplot.png", plot = d, width = 10, height = 8, dpi = 300)
+
+d
+```
+
+***fgsea + Hallmark***
+
+**Loaded fgsea and Hallmark gene sets**
+```{r}
+
+library(fgsea)
+
+
+hallmark_sets <- gmtPathways("h.all.v7.0.symbols.gmt.txt")
+
+
+# Convert ENSEMBL to SYMBOL
+symbol_map <- bitr(
+res_lncap$ENSEMBL,
+fromType = "ENSEMBL",
+toType = "SYMBOL",
+OrgDb = org.Hs.eg.db
+)
+
+
+res_symbol <- res_lncap_df %>%
+left_join(symbol_map, by = c("ENSEMBL" = "ENSEMBL")) %>%
+filter(!is.na(SYMBOL)) %>%
+distinct(SYMBOL, .keep_all = TRUE)
+
+
+ranked_symbols <- res_symbol$log2FoldChange
+names(ranked_symbols) <- res_symbol$SYMBOL
+
+
+ranked_symbols <- sort(ranked_symbols, decreasing = TRUE)
+```
+
+
+**Run fgsea**
+```{r}
+fgsea_res <- fgsea(
+pathways = hallmark_sets,
+stats = ranked_symbols,
+minSize = 15,
+maxSize = 500,
+nperm = 1000
+)
+
+
+fgsea_res[order(padj), .(pathway, NES, padj)][1:6]
+
+```
+
+**Visualized Hallmark enrichment**
+```{r}
+
+waterfall_plot <- function(fgsea_res, graph_title) {
+
+  fgsea_df <- as.data.frame(fgsea_res)
+
+  p <- fgsea_df %>%
+    mutate(short_name = str_split_fixed(pathway, "_", 2)[,2]) %>%
+    ggplot(aes(x = reorder(short_name, NES), y = NES)) +
+      geom_bar(stat = "identity", aes(fill = padj < 0.05)) +
+      coord_flip() +
+      labs(
+        x = "Hallmark Pathway",
+        y = "Normalized Enrichment Score",
+        title = graph_title
+      ) +
+      theme(
+        axis.text.y = element_text(size = 7),
+        plot.title = element_text(hjust = 0.5)
+      )
+
+  return(p)
+}
+
+
+p <- waterfall_plot(
+  fgsea_res,
+  "Hallmark pathways altered by hypoxia in LNCaP cells"
+)
+
+ggsave(
+  filename = "Hallmark_fgsea_waterfall_LNCaP.png",
+  plot = p,
+  width = 8,
+  height = 6,
+  dpi = 300
+)
+
+```
+
+

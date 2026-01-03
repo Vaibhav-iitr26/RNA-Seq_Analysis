@@ -1,0 +1,12 @@
+.RData
+.Rhistory
+.Rproj.user/
+
+*.fastq
+*.fastq.gz
+*.bam
+*.bai
+*.sra
+
+*.ht2
+
