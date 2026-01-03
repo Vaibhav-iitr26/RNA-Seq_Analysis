@@ -327,7 +327,7 @@ dev.off()
 ```
 PCA answers "what dominates variation?"
 <p align="center">
-  <img src="Plots/PCA_plot" width="350">
+  <img src="Plots/PCA_plot.png" width="350">
 </p>
 
 
