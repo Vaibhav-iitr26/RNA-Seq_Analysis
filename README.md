@@ -731,4 +731,13 @@ Overall, this pattern reflects a coordinated transcriptional shift toward hypoxi
 **Overall, fgsea with Hallmark gene sets provides a robust and interpretable summary of hypoxia-induced biological programs in LNCaP cells.**
 
 
+---
+
+
+
+## Guidance
+
+This work was carried out under the guidance of "Smriti Arora"
+reference for the analysis: https://github.com/erilu/bulk-rnaseq-analysis
+
 
